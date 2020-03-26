@@ -1,10 +1,10 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import styled from 'styled-components'
 import { connect } from 'react-redux'
 
-import { getIcon } from '../../util/parse'
+import {getIcon, rowsToGraph} from '../../util/parse'
 import { SearchInput } from '../UI/search-input'
-import { setSearchTerm } from '../Redux/actions'
+import {selectFilter, setSearchTerm, updateGraph} from '../Redux/actions'
 
 const Container = styled.div`
   font-family: 'Lato', sans-serif;
@@ -45,12 +45,30 @@ const Name = styled.div`
   font-size: 40px;
 `
 
-function Header({ patient, setSearchTerm }) {
-
+function Header({ patient, setSearchTerm, selectFilter, updateGraph }) {
+  const [removeLeafNode, toggleRemoveLeafNode] = useState(false)
   const onSearch = (term) => {
   let _serchTerm = term.toUpperCase().replace(/P/g, "").trim();
     setSearchTerm(parseInt(_serchTerm))
 
+  }
+
+  useEffect(() => {
+    fetch('https://api.rootnet.in/covid19-in/unofficial/covid19india.org', {
+        cors: 'no-cors',
+        method: 'GET',
+        redirect: 'follow',
+    })
+      .then(resp => resp.json())
+      .then(res => {
+          updateGraph(rowsToGraph(res.data.rawPatientData, removeLeafNode))
+          selectFilter('P2P')
+      })
+      .catch(err => console.log('error', err))
+  }, [removeLeafNode])
+
+  const onChecked = (isEdgeNodeFilterChecked) => {
+      toggleRemoveLeafNode(isEdgeNodeFilterChecked)
   }
 
   const { patientId } = patient
@@ -60,7 +78,7 @@ function Header({ patient, setSearchTerm }) {
       <Title>
         covid19india.org Tracker Live <Dot>&nbsp;&middot;&nbsp;</Dot> 2H ago
       </Title>
-      <SearchInput searchTerm={onSearch} />
+      <SearchInput searchTerm={onSearch} edgeNodeFilter={onChecked} />
       <PatientContainer>
         <Image src={getIcon(patient)} />
         <Name>P {patientId.toString().substring(2)}</Name>
@@ -70,5 +88,5 @@ function Header({ patient, setSearchTerm }) {
 }
 
 export default connect(null, {
-  setSearchTerm
+  setSearchTerm, updateGraph, selectFilter
 })(Header)
